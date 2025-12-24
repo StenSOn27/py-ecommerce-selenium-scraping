@@ -2,7 +2,8 @@ import csv
 from dataclasses import astuple, dataclass, fields
 from urllib.parse import urljoin
 from bs4 import BeautifulSoup
-import requests
+from selenium import webdriver
+from selenium.webdriver.common.by import By
 
 BASE_URL = "https://webscraper.io/"
 HOME_URL = urljoin(BASE_URL, "test-sites/e-commerce/more/")
@@ -31,11 +32,7 @@ def get_page_products(soup):
     products = soup.select(".product-wrapper.card-body")
     return [get_single_product(product) for product in products]
 
-def get_all_products() -> None:
-    text = requests.get(HOME_URL).content
-    soup = BeautifulSoup(text, "html.parser")
-    products = get_page_products(soup)
-
+def write_to_csv(products):
     with open('result.csv', 'w', newline='') as csvfile:
         writer = csv.writer(csvfile)
         writer.writerow(PRODUCT_FIELDS)
@@ -43,5 +40,26 @@ def get_all_products() -> None:
         writer.writerows(prod_list)
 
 
+def get_all_products():
+    driver = webdriver.Chrome()
+    driver.get(HOME_URL)
+    nav_links = driver.find_elements(By.CSS_SELECTOR, ".sidebar-nav.navbar-collapse .nav-link")
+    urls = [link.get_attribute("href") for link in nav_links]
+    print(urls)
+    results = []
+
+    for url in urls:
+        driver.get(url)
+
+        soup = BeautifulSoup(driver.page_source, "lxml")
+        results.extend(get_page_products(soup))
+    print(results)
+    print(len(results))
+
+    driver.quit()
+    return results
+
+    
 if __name__ == "__main__":
-    get_all_products()
+    result = get_all_products()
+    write_to_csv(result)
